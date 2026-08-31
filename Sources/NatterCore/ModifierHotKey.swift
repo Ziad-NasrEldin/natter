@@ -21,6 +21,30 @@ public enum ModifierHotKey: String, CaseIterable, Codable, Identifiable, Sendabl
     }
 }
 
+public enum ModifierDoubleTapSpeed: String, CaseIterable, Codable, Identifiable, Sendable {
+    case normal
+    case relaxed
+    case slow
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .normal: "Normal"
+        case .relaxed: "Relaxed"
+        case .slow: "Slow"
+        }
+    }
+
+    public var interval: TimeInterval {
+        switch self {
+        case .normal: 0.42
+        case .relaxed: 0.60
+        case .slow: 0.80
+        }
+    }
+}
+
 public enum ModifierHotKeyAction: Equatable, Sendable {
     case arm
     case start

@@ -22,3 +22,12 @@ public enum DestinationApplicationKind: Equatable, Sendable {
         "org.contour-terminal.contour"
     ]
 }
+
+public enum IncrementalTypingPolicy {
+    public static func allows(
+        mode: DictationMode,
+        destination: DestinationApplicationKind
+    ) -> Bool {
+        mode == .agent && destination == .terminal
+    }
+}

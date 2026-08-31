@@ -240,24 +240,46 @@ struct SettingsView: View {
 
 
     private var hotKeyPicker: some View {
-        HStack(spacing: Theme.Space.regular) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Dictation key")
-                    .font(.headline)
-                Text("Double tap to start. Press Command-Shift-M while listening to switch mode. Tap once to stop.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Picker("Dictation key", selection: $store.selectedHotKey) {
-                ForEach(ModifierHotKey.allCases) { hotKey in
-                    Text(hotKey.label).tag(hotKey)
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            HStack(spacing: Theme.Space.regular) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dictation key")
+                        .font(.headline)
+                    Text("Double tap to start. Press Command-Shift-M while listening to switch mode. Tap once to stop.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
+                Spacer()
+                Picker("Dictation key", selection: $store.selectedHotKey) {
+                    ForEach(ModifierHotKey.allCases) { hotKey in
+                        Text(hotKey.label).tag(hotKey)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 150)
             }
-            .labelsHidden()
-            .frame(width: 150)
-            .disabled(store.phase.isBusy)
+
+            Divider()
+
+            HStack(spacing: Theme.Space.regular) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Double-tap speed")
+                        .fontWeight(.medium)
+                    Text("Choose how much time you have between taps.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("Double-tap speed", selection: $store.modifierDoubleTapSpeed) {
+                    ForEach(ModifierDoubleTapSpeed.allCases) { speed in
+                        Text(speed.label).tag(speed)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 150)
+            }
         }
+        .disabled(store.phase.isBusy)
     }
 
     private var header: some View {

@@ -34,6 +34,12 @@ final class DictationStore {
         }
     }
 
+    var modifierDoubleTapSpeed: ModifierDoubleTapSpeed {
+        didSet {
+            defaults.set(modifierDoubleTapSpeed.rawValue, forKey: Keys.modifierDoubleTapSpeed)
+        }
+    }
+
     var spokenLowercaseEnabled: Bool {
         didSet {
             defaults.set(spokenLowercaseEnabled, forKey: Keys.spokenLowercaseEnabled)
@@ -44,10 +50,6 @@ final class DictationStore {
         didSet {
             defaults.set(terminalPacingEnabled, forKey: Keys.terminalPacingEnabled)
         }
-    }
-
-    var agentTypesLive: Bool {
-        didSet { defaults.set(agentTypesLive, forKey: Keys.agentTypesLive) }
     }
 
     var voiceSubmitEnabled: Bool {
@@ -80,12 +82,13 @@ final class DictationStore {
         selectedHotKey = defaults.string(forKey: Keys.selectedHotKey)
             .flatMap(ModifierHotKey.init(rawValue:))
             ?? .rightOption
+        modifierDoubleTapSpeed = defaults.string(forKey: Keys.modifierDoubleTapSpeed)
+            .flatMap(ModifierDoubleTapSpeed.init(rawValue:))
+            ?? .normal
         spokenLowercaseEnabled = defaults.object(forKey: Keys.spokenLowercaseEnabled) as? Bool
             ?? true
         terminalPacingEnabled = defaults.object(forKey: Keys.terminalPacingEnabled) as? Bool
             ?? true
-        agentTypesLive = defaults.object(forKey: Keys.agentTypesLive) as? Bool
-            ?? false
         voiceSubmitEnabled = defaults.object(forKey: Keys.voiceSubmitEnabled) as? Bool
             ?? false
         overlayStyle = defaults.string(forKey: Keys.overlayStyle)
@@ -187,9 +190,9 @@ final class DictationStore {
         static let defaultMode = "defaultMode"
         static let legacySelectedMode = "selectedMode"
         static let selectedHotKey = "selectedHotKey"
+        static let modifierDoubleTapSpeed = "modifierDoubleTapSpeed"
         static let spokenLowercaseEnabled = "spokenLowercaseEnabled"
         static let terminalPacingEnabled = "terminalPacingEnabled"
-        static let agentTypesLive = "agentTypesLive"
         static let voiceSubmitEnabled = "voiceSubmitEnabled"
         static let overlayStyle = "overlayStyle"
         static let preventSleepWhileRecording = "preventSleepWhileRecording"

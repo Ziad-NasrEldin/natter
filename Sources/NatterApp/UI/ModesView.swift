@@ -217,11 +217,6 @@ struct ModesView: View {
             Text("Removes the final command and presses Return after the transcript is safely inserted. Off by default.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Divider()
-            Toggle("Type live in Agent mode", isOn: $store.agentTypesLive)
-            Text("An advanced Agent-only option. Final cleanup still runs after you stop.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .panelCard()
         .disabled(store.phase.isBusy)
