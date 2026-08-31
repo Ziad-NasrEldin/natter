@@ -350,6 +350,11 @@ final class ModifierHotKeyMonitor {
         }
 
         guard event.keyCode == hotKey.keyCode else { return }
+        if detector.doubleTapInterval != store.modifierDoubleTapSpeed.interval {
+            detector = ModifierTapDetector(
+                doubleTapInterval: store.modifierDoubleTapSpeed.interval
+            )
+        }
         let modifierIsActive = event.flags.contains(hotKey.modifierFlag)
         let pressed = edgeTracker.observe(isActive: modifierIsActive)
         NatterLog.hotKey.debug(

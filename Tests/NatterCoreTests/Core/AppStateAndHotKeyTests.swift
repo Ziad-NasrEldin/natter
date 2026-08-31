@@ -61,11 +61,29 @@ import Testing
 }
 
 @Test func modifierDoubleTapStartsAndActiveTapStops() {
-    var detector = ModifierTapDetector(doubleTapInterval: 0.42)
+    var detector = ModifierTapDetector(doubleTapInterval: ModifierDoubleTapSpeed.normal.interval)
 
     #expect(detector.keyDown(at: 10, sessionIsActive: false) == .arm)
     #expect(detector.keyDown(at: 10.4, sessionIsActive: false) == .start)
     #expect(detector.keyDown(at: 11, sessionIsActive: true) == .stop)
+}
+
+@Test func modifierDoubleTapSpeedsProvideLongerWindows() {
+    #expect(ModifierDoubleTapSpeed.normal.interval == 0.42)
+    #expect(ModifierDoubleTapSpeed.relaxed.interval == 0.60)
+    #expect(ModifierDoubleTapSpeed.slow.interval == 0.80)
+
+    var normal = ModifierTapDetector(
+        doubleTapInterval: ModifierDoubleTapSpeed.normal.interval
+    )
+    var relaxed = ModifierTapDetector(
+        doubleTapInterval: ModifierDoubleTapSpeed.relaxed.interval
+    )
+
+    #expect(normal.keyDown(at: 10, sessionIsActive: false) == .arm)
+    #expect(normal.keyDown(at: 10.5, sessionIsActive: false) == .arm)
+    #expect(relaxed.keyDown(at: 10, sessionIsActive: false) == .arm)
+    #expect(relaxed.keyDown(at: 10.5, sessionIsActive: false) == .start)
 }
 
 @Test func firstModifierTapArmsPreRollWithoutStartingDictation() {

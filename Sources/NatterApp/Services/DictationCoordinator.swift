@@ -161,6 +161,9 @@ final class DictationCoordinator {
     private func arm() {
         guard store.canStart else { return }
         armExpiryTask?.cancel()
+        let expiryMilliseconds = Int64(
+            (store.modifierDoubleTapSpeed.interval * 1_000).rounded(.up)
+        ) + 80
         do {
             try microphone.arm()
             NatterLog.audio.debug("capture primed on first modifier tap")
@@ -171,7 +174,7 @@ final class DictationCoordinator {
             return
         }
         armExpiryTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(500))
+            try? await Task.sleep(for: .milliseconds(expiryMilliseconds))
             guard !Task.isCancelled else { return }
             self?.microphone.disarmIfIdle()
         }
@@ -724,8 +727,12 @@ final class DictationCoordinator {
     }
 
     private var sessionTypesIncrementally: Bool {
-        store.selectedMode.typesIncrementally
-            || (store.selectedMode == .agent && store.agentTypesLive)
+        IncrementalTypingPolicy.allows(
+            mode: store.selectedMode,
+            destination: DestinationApplicationKind.classify(
+                bundleIdentifier: session.sourceBundleIdentifier
+            )
+        )
     }
 
     private var shouldUseWritingModel: Bool {

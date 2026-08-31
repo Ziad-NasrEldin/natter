@@ -7,6 +7,26 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.12</title>
+      <sparkle:version>20</sparkle:version>
+      <sparkle:shortVersionString>0.2.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Reliable dictation delivery</h2>
+        <ul>
+          <li>Claude and other standard apps now receive the complete final transcript after recording stops.</li>
+          <li>You can choose Normal, Relaxed or Slow double-tap timing in Settings.</li>
+          <li>Agent mode still types live in terminal apps.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.12/Natter-0.2.12.dmg"
+        length="35509701"
+        type="application/octet-stream"
+        sparkle:edSignature="ryz+uuromxzRfo8eSUEyQw3C8P2qKFgDxi5MfqADthZB/TWvOhwp8Z241sFc0poGy0ou99Hb9eBJm5lehjPnAA==" />
+    </item>
+
+    <item>
       <title>0.2.11</title>
       <sparkle:version>19</sparkle:version>
       <sparkle:shortVersionString>0.2.11</sparkle:shortVersionString>

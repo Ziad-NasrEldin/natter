@@ -142,6 +142,13 @@ import Testing
     #expect(DestinationApplicationKind.classify(bundleIdentifier: nil) == .standard)
 }
 
+@Test func liveTypingIsLimitedToAgentModeInTerminals() {
+    #expect(IncrementalTypingPolicy.allows(mode: .agent, destination: .terminal))
+    #expect(!IncrementalTypingPolicy.allows(mode: .agent, destination: .standard))
+    #expect(!IncrementalTypingPolicy.allows(mode: .raw, destination: .terminal))
+    #expect(!IncrementalTypingPolicy.allows(mode: .clean, destination: .terminal))
+}
+
 @Test func corpusURLCanSelectModeWithoutAcceptingOtherCommands() throws {
     let cleanURL = try #require(URL(string: "natter://mode/clean"))
     let legacyURL = try #require(URL(string: "ian-dictation://mode/agent"))
