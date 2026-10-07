@@ -27,6 +27,7 @@ final class AudioInputDeviceManager {
     private(set) var devices: [AudioInputDevice] = []
     var selectedDeviceUID: String {
         didSet {
+            guard selectedDeviceUID != oldValue else { return }
             defaults.set(selectedDeviceUID, forKey: Keys.selectedDeviceUID)
             NotificationCenter.default.post(name: .natterAudioInputSelectionDidChange, object: nil)
         }

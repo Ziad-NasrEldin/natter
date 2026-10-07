@@ -59,7 +59,7 @@ public enum CancelModifierTapEvent: Equatable, Sendable {
 }
 
 public struct CancelModifierTapDetector: Sendable {
-    public static let leftOptionKeyCode: UInt16 = 58
+    public static let leftOptionKeyCode: UInt16 = DictationKeyCode.leftOption
 
     public let doubleTapInterval: TimeInterval
     private var firstTapTime: TimeInterval?

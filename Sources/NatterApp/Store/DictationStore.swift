@@ -28,11 +28,18 @@ final class DictationStore {
         }
     }
 
-    var selectedHotKey: ModifierHotKey {
+    var selectedHotKey: DictationShortcut {
         didSet {
-            defaults.set(selectedHotKey.rawValue, forKey: Keys.selectedHotKey)
+            defaults.set(Int(selectedHotKey.keyCode), forKey: Keys.dictationShortcutKeyCode)
+            defaults.set(
+                Int(selectedHotKey.modifiers.rawValue),
+                forKey: Keys.dictationShortcutModifiers
+            )
         }
     }
+
+    var isRecordingHotKey = false
+    var hotKeyRecordingMessage: String?
 
     var modifierDoubleTapSpeed: ModifierDoubleTapSpeed {
         didSet {
@@ -79,9 +86,7 @@ final class DictationStore {
             ?? .raw
         defaultMode = initialMode
         selectedMode = initialMode
-        selectedHotKey = defaults.string(forKey: Keys.selectedHotKey)
-            .flatMap(ModifierHotKey.init(rawValue:))
-            ?? .rightOption
+        selectedHotKey = Self.loadHotKey(from: defaults)
         modifierDoubleTapSpeed = defaults.string(forKey: Keys.modifierDoubleTapSpeed)
             .flatMap(ModifierDoubleTapSpeed.init(rawValue:))
             ?? .normal
@@ -169,9 +174,42 @@ final class DictationStore {
         activeModeSource = nil
     }
 
-    func select(_ hotKey: ModifierHotKey) {
+    func select(_ hotKey: DictationShortcut) {
         guard !phase.isBusy else { return }
         selectedHotKey = hotKey
+        isRecordingHotKey = false
+        hotKeyRecordingMessage = nil
+    }
+
+    func beginHotKeyRecording() {
+        guard !phase.isBusy else { return }
+        hotKeyRecordingMessage = nil
+        isRecordingHotKey = true
+    }
+
+    func cancelHotKeyRecording() {
+        isRecordingHotKey = false
+    }
+
+    func rejectHotKeyRecording(_ message: String) {
+        hotKeyRecordingMessage = message
+    }
+
+    private static func loadHotKey(from defaults: UserDefaults) -> DictationShortcut {
+        if defaults.object(forKey: Keys.dictationShortcutKeyCode) != nil {
+            return DictationShortcut(
+                keyCode: UInt16(truncatingIfNeeded: defaults.integer(
+                    forKey: Keys.dictationShortcutKeyCode
+                )),
+                modifiers: DictationShortcutModifiers(rawValue: UInt8(truncatingIfNeeded:
+                    defaults.integer(forKey: Keys.dictationShortcutModifiers)
+                ))
+            )
+        }
+        return defaults.string(forKey: Keys.selectedHotKey)
+            .flatMap(ModifierHotKey.init(rawValue:))
+            .map(DictationShortcut.init)
+            ?? .defaultDictation
     }
 
     func resetSession() {
@@ -190,6 +228,8 @@ final class DictationStore {
         static let defaultMode = "defaultMode"
         static let legacySelectedMode = "selectedMode"
         static let selectedHotKey = "selectedHotKey"
+        static let dictationShortcutKeyCode = "dictationShortcutKeyCode"
+        static let dictationShortcutModifiers = "dictationShortcutModifiers"
         static let modifierDoubleTapSpeed = "modifierDoubleTapSpeed"
         static let spokenLowercaseEnabled = "spokenLowercaseEnabled"
         static let terminalPacingEnabled = "terminalPacingEnabled"

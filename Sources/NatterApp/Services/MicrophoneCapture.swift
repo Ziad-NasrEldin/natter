@@ -123,6 +123,9 @@ enum MicrophoneCaptureError: LocalizedError {
 }
 
 private final class AudioCaptureState: @unchecked Sendable {
+    private static let levelPublishInterval: TimeInterval = 1.0 / 12.0
+    private static let levelChangeThreshold: Float = 0.03
+
     private let lock = NSLock()
     private var generation = 0
     private var preRoll: TimedPreRollBuffer<AudioChunk>
@@ -133,6 +136,8 @@ private final class AudioCaptureState: @unchecked Sendable {
     private var deliveredFirstBuffer = false
     private var observedAnyBuffer = false
     private var stopTiming = AdaptiveStopTimingEstimator()
+    private var lastPublishedLevel: Float = -1
+    private var lastPublishedLevelAt: TimeInterval = 0
 
     init(maximumPreRollDuration: TimeInterval) {
         preRoll = TimedPreRollBuffer(maximumDuration: maximumPreRollDuration)
@@ -149,6 +154,8 @@ private final class AudioCaptureState: @unchecked Sendable {
             deliveredFirstBuffer = false
             observedAnyBuffer = false
             stopTiming.reset()
+            lastPublishedLevel = -1
+            lastPublishedLevelAt = 0
         }
     }
 
@@ -216,7 +223,19 @@ private final class AudioCaptureState: @unchecked Sendable {
         continuation?.yield(chunk)
         if let levelHandler {
             let level = chunk.level
-            Task { @MainActor in levelHandler(level, bands) }
+            let now = ProcessInfo.processInfo.systemUptime
+            let shouldPublish = lock.withLock { () -> Bool in
+                let due = now - lastPublishedLevelAt >= Self.levelPublishInterval
+                let changed = abs(level - lastPublishedLevel) >= Self.levelChangeThreshold
+                    || bands != nil
+                guard due, changed else { return false }
+                lastPublishedLevel = level
+                lastPublishedLevelAt = now
+                return true
+            }
+            if shouldPublish {
+                Task { @MainActor in levelHandler(level, bands) }
+            }
         }
         if let firstBufferHandler {
             Task { @MainActor in firstBufferHandler() }

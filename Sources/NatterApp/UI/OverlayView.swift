@@ -70,7 +70,7 @@ struct OverlayView: View {
                     .contentTransition(.numericText())
                     .accessibilityLabel("\(wordCount) words dictated")
             }
-            levelMeter
+            OverlayMeter(store: store, isActive: canCancel)
             modeButton(font: .system(size: 14, weight: .semibold))
             Text(store.phase.label)
                 .font(.system(size: 12, weight: .medium))
@@ -110,7 +110,7 @@ struct OverlayView: View {
                     .contentTransition(.numericText())
                     .accessibilityLabel("\(wordCount) words dictated")
             }
-            levelMeter
+            OverlayMeter(store: store, isActive: canCancel)
             Text(store.phase.label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -134,10 +134,6 @@ struct OverlayView: View {
             return statusMessage
         }
         return store.liveTranscript.isEmpty ? "Listening…" : store.liveTranscript
-    }
-
-    private var levelMeter: some View {
-        LiveVoiceMeter(level: store.audioLevel, bands: store.audioBands, isActive: canCancel)
     }
 
     private func modeButton(font: Font) -> some View {
@@ -170,6 +166,17 @@ struct OverlayView: View {
 
 }
 
+/// Isolated so overlay transcript/layout views are not invalidated on every
+/// meter tick. `OverlayView` must not read `audioLevel` or `audioBands`.
+private struct OverlayMeter: View {
+    @Bindable var store: DictationStore
+    let isActive: Bool
+
+    var body: some View {
+        LiveVoiceMeter(level: store.audioLevel, bands: store.audioBands, isActive: isActive)
+    }
+}
+
 /// Spectrum meter: each bar tracks a real log-spaced frequency band from the
 /// capture path, so the display follows the shape of the sound rather than
 /// pulsing every bar from one loudness value. Bars start flat and rise with
@@ -198,15 +205,12 @@ private struct LiveVoiceMeter: View {
                 bars = Array(repeating: 0, count: bars.count)
                 return
             }
-            let nextBars = bars.indices.map { index in
+            bars = bars.indices.map { index in
                 let target = newTargets[index]
                 let previous = bars[index]
                 guard target < previous else { return target }
                 let release = releaseProfile[index]
                 return (previous * release) + (target * (1 - release))
-            }
-            withAnimation(.interpolatingSpring(stiffness: 300, damping: 20)) {
-                bars = nextBars
             }
         }
         .onChange(of: isActive) { _, active in

@@ -474,30 +474,27 @@ private struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                 }
             }
-        } else if permissions.wasRequested(permission) {
+        } else {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Natter still cannot verify this permission. Make sure its switch is on in System Settings, then return here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    permissions.wasRequested(permission)
+                        ? "Natter still cannot verify this permission. Click Allow so macOS adds it to the list, then approve the prompt."
+                        : "macOS will ask you to approve this next."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 HStack {
-                    Button("Check Again") { permissions.refresh() }
+                    if permissions.wasRequested(permission) {
+                        Button("Open Settings") {
+                            permissions.openSystemSettings(for: permission)
+                        }
+                    }
                     Spacer()
-                    Button("Open Settings") {
-                        permissions.openSystemSettings(for: permission)
+                    Button("Allow \(permission.label)") {
+                        permissions.request(permission)
                     }
                     .buttonStyle(.borderedProminent)
                 }
-            }
-        } else {
-            HStack {
-                Text("macOS will ask you to approve this next.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Allow \(permission.label)") {
-                    permissions.request(permission)
-                }
-                .buttonStyle(.borderedProminent)
             }
         }
     }

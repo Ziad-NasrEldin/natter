@@ -402,6 +402,39 @@ import Testing
     #expect(DictationHistoryRecord.countWords(in: "Ship v2 to ian@example.com.") == 4)
 }
 
+@Test func typingWordsPerMinuteClampIsIdempotent() {
+    #expect(TypingWordsPerMinute.clamp(40) == 40)
+    #expect(TypingWordsPerMinute.clamp(5) == 10)
+    #expect(TypingWordsPerMinute.clamp(500) == 200)
+    #expect(TypingWordsPerMinute.clamp(.nan) == 40)
+    #expect(TypingWordsPerMinute.adjusted(from: 40) == nil)
+    #expect(TypingWordsPerMinute.adjusted(from: 10) == nil)
+    #expect(TypingWordsPerMinute.adjusted(from: 200) == nil)
+    #expect(TypingWordsPerMinute.adjusted(from: 5) == 10)
+    #expect(TypingWordsPerMinute.adjusted(from: 500) == 200)
+    #expect(TypingWordsPerMinute.sanitizeStored(0) == 40)
+    #expect(TypingWordsPerMinute.sanitizeStored(-1) == 40)
+    #expect(TypingWordsPerMinute.sanitizeStored(75) == 75)
+
+    // The Settings stepper crash: assigning an in-range value from `didSet`
+    // re-enters `didSet` forever. `adjusted(from:)` must stop that chain.
+    var writes = 0
+    var stored = 40.0
+    func assign(_ next: Double) {
+        writes += 1
+        #expect(writes < 8)
+        stored = next
+        if let adjusted = TypingWordsPerMinute.adjusted(from: stored) {
+            assign(adjusted)
+        }
+    }
+    assign(40)
+    #expect(writes == 1)
+    assign(3)
+    #expect(stored == 10)
+    #expect(writes == 3)
+}
+
 @Test func historyActivityGroupsRecentRecordsInOneDailySeries() {
     let calendar = Calendar(identifier: .gregorian)
     let end = Date(timeIntervalSince1970: 7 * 86_400 + 12 * 3_600)

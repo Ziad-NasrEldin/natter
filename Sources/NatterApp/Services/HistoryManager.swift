@@ -87,7 +87,10 @@ final class HistoryManager {
 
     var typingWordsPerMinute: Double {
         didSet {
-            typingWordsPerMinute = min(200, max(10, typingWordsPerMinute))
+            if let clamped = TypingWordsPerMinute.adjusted(from: typingWordsPerMinute) {
+                typingWordsPerMinute = clamped
+                return
+            }
             defaults.set(typingWordsPerMinute, forKey: Keys.typingWordsPerMinute)
         }
     }
@@ -111,8 +114,9 @@ final class HistoryManager {
         retention = TranscriptRetention(
             rawValue: defaults.object(forKey: Keys.retention) as? Int ?? 90
         ) ?? .ninetyDays
-        let savedTypingRate = defaults.double(forKey: Keys.typingWordsPerMinute)
-        typingWordsPerMinute = savedTypingRate > 0 ? savedTypingRate : 40
+        typingWordsPerMinute = TypingWordsPerMinute.sanitizeStored(
+            defaults.double(forKey: Keys.typingWordsPerMinute)
+        )
         applyRetention()
     }
 

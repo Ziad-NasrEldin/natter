@@ -245,18 +245,18 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dictation key")
                         .font(.headline)
-                    Text("Double tap to start. Press Command-Shift-M while listening to switch mode. Tap once to stop.")
+                    Text("Double tap to start. Click the shortcut and press any key or combination to change it. Press Command-Shift-M while listening to switch mode. Tap once to stop.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Picker("Dictation key", selection: $store.selectedHotKey) {
-                    ForEach(ModifierHotKey.allCases) { hotKey in
-                        Text(hotKey.label).tag(hotKey)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 150)
+                HotKeyRecorderControl(store: store)
+            }
+
+            if let message = store.hotKeyRecordingMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()

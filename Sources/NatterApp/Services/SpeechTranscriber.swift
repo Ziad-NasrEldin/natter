@@ -8,64 +8,61 @@ import Foundation
 /// offline encoder decodes the retained session audio at stop to produce the
 /// transcript that is actually delivered (better WER than any streaming pass).
 actor SpeechTranscriber {
+    private let streamingConfig = UnifiedConfig(leftFrames: 70, chunkFrames: 7, rightFrames: 1)
     private let finalizer = UnifiedAsrManager()
-    private let preview = StreamingUnifiedAsrManager(
-        config: UnifiedConfig(leftFrames: 70, chunkFrames: 7, rightFrames: 1)
-    )
+    private let preview: StreamingUnifiedAsrManager
     private var retainedSamples: [Float] = []
+    private var pendingPreviewSamples: [Float] = []
     private var lastPreviewTranscript = ""
     private var previewFailed = false
-    private var loadedDirectory: URL?
-    private var preparationTask: Task<Void, Error>?
+    private var previewDirectory: URL?
+    private var finalizerDirectory: URL?
+    private var finalizerLoadTask: Task<Void, Error>?
 
+    init() {
+        preview = StreamingUnifiedAsrManager(config: streamingConfig)
+    }
+
+    /// Loads the streaming encoder so listening can start, then kicks off the
+    /// offline encoder in the background. The previous path loaded both and
+    /// ran a blocking silence transcribe before returning, so the first
+    /// dictation sat on "Loading local speech model…" until CoreML finished
+    /// compiling ~2 GB of graphs.
     func prepare(modelDirectory: URL) async throws {
-        guard loadedDirectory != modelDirectory else { return }
-        if let preparationTask {
-            try await preparationTask.value
-            return
-        }
-
-        let task = Task {
-            try await finalizer.loadModels(from: modelDirectory)
-            try await preview.loadModels(from: modelDirectory)
-        }
-        preparationTask = task
-        do {
-            try await task.value
-            loadedDirectory = modelDirectory
-            preparationTask = nil
-            await warmUp()
-        } catch {
-            preparationTask = nil
-            throw error
-        }
+        try await ensurePreview(modelDirectory)
+        startFinalizerLoad(modelDirectory)
     }
 
     func install(
         to modelsDirectory: URL,
         progressHandler: @escaping ProgressHandler
     ) async throws {
-        try await finalizer.loadModels(to: modelsDirectory, progressHandler: progressHandler)
         try await preview.loadModels(to: modelsDirectory, progressHandler: progressHandler)
-        loadedDirectory = modelsDirectory.appendingPathComponent(
+        let directory = modelsDirectory.appendingPathComponent(
             SpeechModelLocation.relativePath,
             isDirectory: true
         )
-        await warmUp()
+        previewDirectory = directory
+        try await finalizer.loadModels(from: directory)
+        finalizerDirectory = directory
+        finalizerLoadTask = nil
     }
 
     func unload() async {
-        preparationTask?.cancel()
-        preparationTask = nil
+        finalizerLoadTask?.cancel()
+        finalizerLoadTask = nil
         await finalizer.cleanup()
         await preview.cleanup()
         retainedSamples.removeAll()
+        pendingPreviewSamples.removeAll()
         lastPreviewTranscript = ""
-        loadedDirectory = nil
+        previewDirectory = nil
+        finalizerDirectory = nil
     }
 
     func reset() async {
         retainedSamples.removeAll()
+        pendingPreviewSamples.removeAll()
         lastPreviewTranscript = ""
         previewFailed = false
         try? await finalizer.reset()
@@ -79,8 +76,16 @@ actor SpeechTranscriber {
     func consume(_ chunk: AudioChunk) async throws -> String {
         retainedSamples.append(contentsOf: chunk.samples)
         guard !previewFailed else { return lastPreviewTranscript }
+        pendingPreviewSamples.append(contentsOf: chunk.samples)
+        guard pendingPreviewSamples.count >= streamingConfig.chunkSamples else {
+            return lastPreviewTranscript
+        }
+        let samples = pendingPreviewSamples
+        pendingPreviewSamples.removeAll(keepingCapacity: true)
         do {
-            try await preview.appendAudio(chunk.makeBuffer())
+            try await preview.appendAudio(
+                AudioChunk(samples: samples, sampleRate: chunk.sampleRate).makeBuffer()
+            )
             try await preview.processBufferedAudio()
             lastPreviewTranscript = await preview.getPartialTranscript()
         } catch {
@@ -93,21 +98,45 @@ actor SpeechTranscriber {
     }
 
     func finish() async throws -> String {
+        if let previewDirectory {
+            try await ensureFinalizer(previewDirectory)
+        }
         let transcript = try await finalizer.transcribe(retainedSamples)
         await reset()
         return transcript
     }
 
-    /// Runs one synthetic pass through both encoders so ANE graph
-    /// materialization happens at warm-up instead of on the first dictation.
-    private func warmUp() async {
-        let silence = [Float](repeating: 0, count: 16_000)
-        _ = try? await finalizer.transcribe(silence)
-        try? await finalizer.reset()
-        if let buffer = try? AudioChunk(samples: silence, sampleRate: 16_000).makeBuffer() {
-            try? await preview.appendAudio(buffer)
-            try? await preview.processBufferedAudio()
-            try? await preview.reset()
+    private func ensurePreview(_ directory: URL) async throws {
+        guard previewDirectory != directory else { return }
+        try await preview.loadModels(from: directory)
+        previewDirectory = directory
+    }
+
+    private func startFinalizerLoad(_ directory: URL) {
+        guard finalizerDirectory != directory, finalizerLoadTask == nil else { return }
+        let finalizer = finalizer
+        finalizerLoadTask = Task {
+            try await finalizer.loadModels(from: directory)
         }
+    }
+
+    private func ensureFinalizer(_ directory: URL) async throws {
+        if finalizerDirectory == directory { return }
+        if let finalizerLoadTask {
+            self.finalizerLoadTask = nil
+            do {
+                try await finalizerLoadTask.value
+                finalizerDirectory = directory
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                NatterLog.model.error(
+                    "offline speech model preload failed error=\(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
+        try await finalizer.loadModels(from: directory)
+        finalizerDirectory = directory
     }
 }

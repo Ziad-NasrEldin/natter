@@ -97,13 +97,7 @@ final class PermissionController {
         markRequested(permission)
         switch permission {
         case .microphone:
-            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
-                AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
-                    Task { @MainActor in self?.refresh() }
-                }
-            } else {
-                openSystemSettings(for: permission)
-            }
+            promptForMicrophoneAccess()
         case .accessibility:
             permissionsAwaitingRelaunch.insert(permission)
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
@@ -144,9 +138,35 @@ final class PermissionController {
 
     func openSystemSettings(for permission: AppPermission) {
         markRequested(permission)
-        if permission != .microphone {
-            permissionsAwaitingRelaunch.insert(permission)
+        if permission == .microphone {
+            promptForMicrophoneAccess()
+            return
         }
+        permissionsAwaitingRelaunch.insert(permission)
+        openPrivacyPane(for: permission)
+    }
+
+    /// System Settings only lists an app after it has called the microphone
+    /// prompt API. Opening the pane without that leaves Natter missing.
+    private func promptForMicrophoneAccess() {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                Task { @MainActor in
+                    self?.refresh()
+                    if !granted {
+                        self?.openPrivacyPane(for: .microphone)
+                    }
+                }
+            }
+        case .authorized:
+            refresh()
+        default:
+            openPrivacyPane(for: .microphone)
+        }
+    }
+
+    private func openPrivacyPane(for permission: AppPermission) {
         let pane: String
         switch permission {
         case .microphone:

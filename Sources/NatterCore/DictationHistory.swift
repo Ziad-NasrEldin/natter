@@ -101,6 +101,32 @@ public enum DictationActivity {
     }
 }
 
+/// Baseline typing speed used for "time saved" stats. The Settings stepper
+/// writes this through an `@Observable` property; assigning the same value
+/// from `didSet` re-enters `didSet` forever, so callers must only write when
+/// `adjusted(from:)` returns a new value.
+public enum TypingWordsPerMinute {
+    public static let minimum = 10.0
+    public static let maximum = 200.0
+    public static let fallback = 40.0
+
+    public static func clamp(_ value: Double) -> Double {
+        guard value.isFinite else { return fallback }
+        return min(maximum, max(minimum, value))
+    }
+
+    public static func sanitizeStored(_ value: Double) -> Double {
+        value > 0 ? clamp(value) : fallback
+    }
+
+    /// `nil` when `value` is already in range, so an `@Observable` `didSet`
+    /// can persist without assigning the property again.
+    public static func adjusted(from value: Double) -> Double? {
+        let clamped = clamp(value)
+        return clamped == value ? nil : clamped
+    }
+}
+
 public struct DictationStatistics: Equatable, Sendable {
     public let totalWords: Int
     public let totalDurationSeconds: TimeInterval
@@ -112,7 +138,7 @@ public struct DictationStatistics: Equatable, Sendable {
     public init(
         records: [DictationHistoryRecord],
         since cutoff: Date? = nil,
-        typingWordsPerMinute: Double = 40,
+        typingWordsPerMinute: Double = TypingWordsPerMinute.fallback,
         calendar: Calendar = .current
     ) {
         let included = cutoff.map { cutoff in
